@@ -1,7 +1,6 @@
 import streamlit as st
 from datetime import datetime
 
-# Title
 st.title("🏢 Maintenance Calculator")
 
 # Inputs
@@ -12,52 +11,53 @@ move_in_month = st.selectbox("📅 Select move-in month",
 move_in_year = st.number_input("📆 Enter move-in year", min_value=2020, max_value=2030, value=2025)
 
 if st.button("🔍 Calculate"):
-    # Mapping month names to numbers
     month_mapping = {
         "January": 1, "February": 2, "March": 3, "April": 4, "May": 5, "June": 6,
         "July": 7, "August": 8, "September": 9, "October": 10, "November": 11, "December": 12
     }
-
-    move_in_month_number = month_mapping[move_in_month]
+    move_in_month_num = month_mapping[move_in_month]
 
     # Rates
     rate_old = 5.00
     rate_new = 3.95
+    monthly_cost_old = area * rate_old
+    monthly_cost_new = area * rate_new
 
-    # Full maintenance paid in Jan 2025
-    total_maintenance_paid = area * rate_old * 12
+    # Dates
+    changeover_month = 4
+    changeover_year = 2025
+    changeover_date = datetime(changeover_year, changeover_month, 1)
+    start_date = datetime(move_in_year, move_in_month_num, 1)
 
-    # Maintenance used only if move-in is on or before March 2025
-    if move_in_year == 2025 and move_in_month_number <= 3:
-        used_months = 3 - move_in_month_number + 1  # e.g., Feb => 2 months (Feb, Mar)
-    elif move_in_year == 2025 and move_in_month_number > 3:
-        used_months = 0  # moved in after March 2025
-    else:
-        used_months = 3  # default assumption, moved in earlier than 2025
+    # Total paid for 12 months at old rate
+    total_paid = area * rate_old * 12
 
-    used_amount = area * rate_old * used_months
-    remaining_balance = total_maintenance_paid - used_amount
+    # Calculate number of months from move-in to March 2025
+    march_2025 = datetime(2025, 3, 1)
+    used_months = 0
+    for i in range(12):
+        month = (move_in_month_num + i - 1) % 12 + 1
+        year = move_in_year + (move_in_month_num + i - 1) // 12
+        curr_date = datetime(year, month, 1)
+        if curr_date <= march_2025:
+            used_months += 1
+        else:
+            break
 
-    # Months covered at new rate
-    months_covered = int(remaining_balance // (area * rate_new))
+    used_amount = used_months * monthly_cost_old
+    remaining_balance = total_paid - used_amount
+    remaining_balance = max(0, remaining_balance)
 
-    # Month and year from which payment resumes
-    start_month = 4 + months_covered  # Starting from April 2025
-    start_year = 2025
-    if start_month > 12:
-        start_year += (start_month - 1) // 12
-        start_month = (start_month - 1) % 12 + 1
+    # From April 2025, how many months can this balance cover at ₹3.95/sqft?
+    months_covered = int(remaining_balance // monthly_cost_new)
 
-    # Base monthly and quarterly maintenance
-    monthly_base = area * rate_new
-    quarterly_base = monthly_base * 3
+    # Next maintenance due date
+    next_due_month = 4 + months_covered
+    next_due_year = 2025 + (next_due_month - 1) // 12
+    next_due_month = (next_due_month - 1) % 12 + 1
+    next_due_date = datetime(next_due_year, next_due_month, 1)
 
-    # Payable after subtracting balance
-    quarter_payable = quarterly_base - remaining_balance
-    if quarter_payable < 0:
-        quarter_payable = 0.0
-
-    # Quarter label
+    # Quarterly calculations
     def get_quarter_label(month):
         if month in [1, 2, 3]:
             return "Q1 (Jan–Mar)"
@@ -68,23 +68,26 @@ if st.button("🔍 Calculate"):
         else:
             return "Q4 (Oct–Dec)"
 
-    quarter_label = get_quarter_label(start_month)
-    readable_month = datetime(start_year, start_month, 1).strftime('%B %Y')
+    quarter_label = get_quarter_label(next_due_month)
+    quarter_base = monthly_cost_new * 3
+    quarter_payable = max(0, quarter_base - remaining_balance)
 
-    # Display
+    readable_month = next_due_date.strftime('%B %Y')
+
+    # Outputs
     st.markdown("---")
     st.success(f"✅ Next maintenance due from: **{readable_month}**")
 
     st.info(
         f"🧾 **Quarterly Maintenance ({quarter_label}):**\n"
-        f"• Quarter Base: ₹{quarterly_base:,.2f}\n"
+        f"• Quarter Base: ₹{quarter_base:,.2f}\n"
         f"• Minus Remaining Balance: ₹{remaining_balance:,.2f}\n"
         f"👉 **You Need to Pay: ₹{quarter_payable:,.2f}**"
     )
 
     st.markdown("---")
     st.subheader("📊 Detailed Breakdown")
-    st.write(f"• Total maintenance paid in Jan 2025: ₹{total_maintenance_paid:,.2f}")
-    st.write(f"• Maintenance used till March 2025: ₹{used_amount:,.2f}")
-    st.write(f"• Remaining balance carried forward: ₹{remaining_balance:,.2f}")
-    st.write(f"• Covers {months_covered} month(s) from April 2025 at ₹3.95/sqft")
+    st.write(f"• Maintenance paid from **{move_in_month} {move_in_year}** for 12 months: ₹{total_paid:,.2f}")
+    st.write(f"• Used till March 2025: ₹{used_amount:,.2f} ({used_months} month(s) × ₹{monthly_cost_old:,.2f})")
+    st.write(f"• Remaining balance: ₹{remaining_balance:,.2f}")
+    st.write(f"• Covers ≈ {months_covered} month(s) from April 2025 at ₹3.95/sqft")
