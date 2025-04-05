@@ -88,7 +88,7 @@ if st.button("Calculate"):
     result = calculate_maintenance(area, move_in_month, move_in_year)
 
     st.subheader("🔍 Maintenance Summary")
-    st.write(f"**Total Maintenance Paid:** ₹{result['base_amount']:.2f}")
+    st.write(f"**Total Maintenance Paid(without GST):** ₹{result['base_amount']:.2f}")
     st.write(f"• Used till March 2025 (if applicable): ₹{result['used_amount']:.2f}")
     st.write(f"• Remaining Balance: ₹{result['remaining_balance']:.2f}")
     st.write(f"• Covers ≈ {result['months_free']} full month(s) post-April 2025 at ₹3.95/sqft")
